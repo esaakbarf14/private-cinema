@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Cinema Moya Barida Salim</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Three.js (Efek Latar Belakang Partikel Love) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts Premium -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair_Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #fff0f3 0%, #ffe5ec 50%, #ffcad4 100%);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Glassmorphism Premium Card Blur */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 182, 193, 0.6);
+        }
+
+        /* Animasi Preloader Menggunakan Pure CSS (Anti-Macet) */
+        @keyframes fadeOutLoader {
+            0% { opacity: 1; visibility: visible; }
+            90% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; pointer-events: none; }
+        }
+        #appLoader {
+            animation: fadeOutLoader 2.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        /* Memunculkan Tiket Secara Halus Setelah Loader Selesai */
+        @keyframes fadeInTicket {
+            0% { opacity: 0; transform: translateY(15px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .ticket-fade-in {
+            opacity: 0;
+            animation: fadeInTicket 1s cubic-bezier(0.25, 1, 0.5, 1) 2.3s forwards;
+        }
+
+        /* Animasi Hati Muncul Berdenyut di Samping Teks */
+        .heart-badge {
+            opacity: 0;
+            transform: scale(0.5);
+            animation: popHeart 1s cubic-bezier(0.34, 1.56, 0.64, 1) 2.8s forwards, beatHeart 2s infinite ease-in-out 3.8s;
+        }
+        @keyframes popHeart { to { opacity: 1; transform: scale(1); } }
+        @keyframes beatHeart {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 2px 4px rgba(244,63,94,0.2)); }
+            50% { transform: scale(1.15); filter: drop-shadow(0 4px 12px rgba(244,63,94,0.4)); }
+        }
+
+        /* Desain Struktur Tiket Bioskop Mewah */
+        .cinema-ticket {
+            position: relative;
+            background: radial-gradient(circle at top left, transparent 12px, rgba(255,255,255,0.85) 13px),
+                        radial-gradient(circle at top right, transparent 12px, rgba(255,255,255,0.85) 13px),
+                        radial-gradient(circle at bottom left, transparent 12px, rgba(255,255,255,0.85) 13px),
+                        radial-gradient(circle at bottom right, transparent 12px, rgba(255,255,255,0.85) 13px);
+            background-size: 51% 51%;
+            background-repeat: no-repeat;
+            background-position: top left, top right, bottom left, bottom right;
+            border: 1px dashed rgba(244, 63, 94, 0.3);
+        }
+
+        /* Glow Efek Sinematik */
+        .luxury-glow { box-shadow: 0 30px 70px -15px rgba(244, 63, 94, 0.18), 0 0 50px 0px rgba(255, 182, 193, 0.25); }
+        .screen-glow { box-shadow: 0 25px 60px -10px rgba(244, 63, 94, 0.35); }
+
+        #ambient-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
+        }
+
+        /* Efek Transisi Ledakan Hati (Full Screen Overlay) */
+        #love-explosion-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 240, 243, 0);
+            z-index: 999;
+            pointer-events: none;
+            transition: background-color 0.8s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #love-explosion-overlay.active {
+            background-color: #fff0f3;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-[#fff0f3] flex flex-col justify-between relative overflow-y-auto">
+
+    <!-- LAYER LATAR BELAKANG PARTIKEL JATUH -->
+    <canvas id="ambient-canvas"></canvas>
+
+    <!-- OVERLAY TRANSISI LEDAKAN LOVE -->
+    <div id="love-explosion-overlay">
+        <div id="burst-container" class="relative w-full h-full pointer-events-none"></div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 0. INITIAL PRE-LOADER SCREEN (PURE CSS)     -->
+    <!-- ========================================== -->
+    <div id="appLoader" class="fixed inset-0 bg-[#fff0f3] z-50 flex flex-col items-center justify-center">
+        <div class="relative flex items-center justify-center">
+            <!-- Animasi Detak Jantung Hati Pink -->
+            <svg class="w-16 h-16 fill-rose-400 animate-pulse" viewBox="0 0 24 24">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+            <span class="absolute inline-flex h-16 w-16 rounded-full bg-rose-400 opacity-25 animate-ping"></span>
+        </div>
+        <h2 class="text-rose-500 font-['Playfair_Display'] italic text-lg mt-6 tracking-widest animate-pulse">Preparing Your Cinema Room...</h2>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN WRAPPER KONTEN UTAMA                  -->
+    <!-- ========================================== -->
+    <div class="w-full flex-grow flex items-center justify-center p-4 sm:p-6 md:p-8 z-10 my-auto">
+
+        <!-- ========================================== -->
+        <!-- 1. EXCLUSIVE INTERACTIVE TICKET SCREEN     -->
+        <!-- ========================================== -->
+        <div id="ticketSection" class="w-full flex flex-col items-center max-w-md py-4 ticket-fade-in">
+            
+            <!-- Header Tiket Elegance -->
+            <div class="text-center mb-8 px-2">
+                <span class="text-[9px] font-bold tracking-[0.35em] text-rose-500 uppercase bg-white/90 px-4 py-2 rounded-full border border-rose-200/40 shadow-xs">
+                    Private Invitation Entry
+                </span>
+                <h1 class="text-gray-800 text-3xl font-light mt-4 tracking-wide font-['Playfair_Display']">
+                    Moya Barida Private Cinema
+                </h1>
+                <p class="text-rose-400/90 text-[11px] mt-2 font-light tracking-wide max-w-xs mx-auto leading-relaxed">
+                    Ketuk tiket eksklusif di bawah ini untuk merobek pass dan membuka gerbang ruang sinema.
+                </p>
+            </div>
+
+            <!-- Tiket Fisik Bioskop Mewah (Layout Horizontal Terbagi Dua) -->
+            <div class="cinema-ticket rounded-2xl w-full luxury-glow backdrop-blur-md transform hover:scale-[1.01] active:scale-[0.99] transition-all duration-500 group overflow-hidden flex flex-col sm:flex-row bg-white/80">
+                
+                <!-- BAGIAN KIRI: POSTER & UTAMA -->
+                <div class="flex-grow p-5 flex flex-col justify-between border-b sm:border-b-0 sm:border-r border-dashed border-rose-200/60 relative">
+                    
+                    <!-- Dekorasi Setengah Lingkaran Perforasi (Hanya Muncul di Layar Lebar pada Sisi Kanan Pembatas) -->
+                    <div class="hidden sm:block absolute -right-[7px] -top-[7px] w-3.5 h-3.5 bg-[#ffe5ec] rounded-full border border-rose-200/30"></div>
+                    <div class="hidden sm:block absolute -right-[7px] -bottom-[7px] w-3.5 h-3.5 bg-[#ffcad4] rounded-full border border-rose-200/30"></div>
+
+                    <div>
+                    <!-- Frame Gambar Poster (Sesuai Rasio 3:4) -->
+                   <!-- Frame Gambar Poster (Efek Kaca + Background Blur) -->
+                        <div class="relative aspect-[16/10] w-full rounded-xl overflow-hidden bg-rose-950/5 shadow-inner mb-4 flex items-center justify-center">
+                            <!-- Foto Latar Belakang (Untuk Efek Blur di Sisi Kosong) -->
+                            <img src="sampul.jpg" class="absolute inset-0 w-full h-full object-cover blur-md opacity-30 scale-110" alt="">
+                            
+                            <!-- Foto Utama Rasio 3:4 Aman Tanpa Terpotong -->
+                            <img src="sampul.jpg" 
+                                 alt="Cinematic Session Poster" 
+                                 class="z-10 h-full w-auto object-contain transition-transform duration-1000 group-hover:scale-102">
+                            
+                            <div class="absolute inset-0 bg-gradient-to-t from-rose-950/20 via-transparent to-transparent z-20"></div>
+                            <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-md text-[8px] text-rose-600 font-bold tracking-widest px-2.5 py-1 rounded-md uppercase border border-rose-100 shadow-xs z-20">
+                                EXCLUSIVE PASS
+                            </div>
+                        </div>
+
+                        <!-- Metadata Film -->
+                        <span class="text-[8px] font-bold tracking-[0.25em] text-rose-400 uppercase block mb-0.5">Special Private Screening</span>
+                        <h2 class="text-gray-800 text-xl font-medium font-['Playfair_Display'] tracking-wide">Senin Harga Naik</h2>
+                        <p class="text-gray-400 text-[10px] font-light mt-1 tracking-wide">dedicated to someone I love</p>
+                    </div>
+
+                    <!-- Info Waktu & Tempat Bagian Kiri -->
+                    <div class="grid grid-cols-3 gap-2 mt-6 pt-3 border-t border-rose-100 text-left">
+                        <div>
+                            <span class="text-[7px] uppercase tracking-wider text-gray-400 block">Date</span>
+                            <span class="text-[10px] font-semibold text-gray-700">Tonight</span>
+                        </div>
+                        <div>
+                            <span class="text-[7px] uppercase tracking-wider text-gray-400 block">Time</span>
+                            <span class="text-[10px] font-semibold text-gray-700">Special Hour</span>
+                        </div>
+                        <div>
+                            <span class="text-[7px] uppercase tracking-wider text-gray-400 block">Seat</span>
+                            <span class="text-[10px] font-bold text-rose-500">VIP-01</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BAGIAN KANAN: TEAR-OFF STUB (POTONGAN TIKET SOBEKAN) -->
+                <div class="w-full sm:w-36 p-5 flex flex-col justify-between items-center bg-white/40 backdrop-blur-xs relative text-center min-h-[160px] sm:min-h-auto">
+                    
+                    <!-- Dekorasi Setengah Lingkaran Perforasi Mobile -->
+                    <div class="sm:hidden absolute -left-[7px] -top-[7px] w-3.5 h-3.5 bg-[#fff0f3] rounded-full"></div>
+                    <div class="sm:hidden absolute -right-[7px] -top-[7px] w-3.5 h-3.5 bg-[#fff0f3] rounded-full"></div>
+
+                    <div class="w-full">
+                        <div class="text-[8px] font-bold tracking-widest text-rose-400 uppercase mb-1">Row</div>
+                        <div class="text-2xl font-light text-gray-800 font-['Playfair_Display'] italic">A-001</div>
+                        <div class="w-full border-b border-dashed border-rose-200/40 my-3"></div>
+                        <h3 class="text-gray-700 text-[11px] font-medium font-['Playfair_Display']">Moya Barida Salim</h3>
+                    </div>
+
+                    <!-- Barcode Dekoratif CSS Mewah -->
+                    <div class="w-full my-4 opacity-75 group-hover:opacity-100 transition-opacity duration-500 flex flex-col items-center">
+                        <div class="flex h-7 items-center justify-center gap-[2px] w-full px-2">
+                            <div class="bg-gray-800 w-[2px] h-full"></div>
+                            <div class="bg-gray-800 w-[1px] h-full"></div>
+                            <div class="bg-gray-800 w-[3px] h-full"></div>
+                            <div class="bg-gray-800 w-[1px] h-full"></div>
+                            <div class="bg-gray-800 w-[4px] h-full"></div>
+                            <div class="bg-gray-800 w-[1px] h-full"></div>
+                            <div class="bg-gray-800 w-[2px] h-full"></div>
+                            <div class="bg-gray-800 w-[3px] h-full"></div>
+                            <div class="bg-gray-800 w-[1px] h-full"></div>
+                            <div class="bg-gray-800 w-[2px] h-full"></div>
+                        </div>
+                        <span class="text-[7px] text-gray-400 tracking-[0.4em] uppercase mt-1.5 font-mono">Moyes's</span>
+                    </div>
+
+                    <!-- Tombol Konfirmasi Tiket -->
+                    <button onclick="triggerLoveExplosionPipeline()" class="w-full bg-gradient-to-r from-rose-400 via-pink-400 to-rose-400 bg-[length:200%_auto] hover:bg-right text-white text-[9px] font-bold tracking-widest uppercase py-3 rounded-xl transition-all duration-500 cursor-pointer shadow-sm shadow-rose-300/30">
+                        Klik disini
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. LUXURY PRIVATE CINEMA STAGE             -->
+        <!-- ========================================== -->
+       <!-- ========================================== -->
+        <!-- 2. LUXURY PRIVATE CINEMA STAGE             -->
+        <!-- ========================================== -->
+        <main id="mainCinema" class="hidden w-full max-w-2xl flex flex-col items-center opacity-0 transition-all duration-1000 transform translate-y-8 py-6">
+            
+            <!-- ULTRA-PREMIUM MINIMALIST HEADER BAR -->
+            <div class="w-full flex justify-center mb-10 mt-2 px-4 select-none animate-fade-in">
+                <div class="inline-flex items-center gap-3.5 bg-white/60 backdrop-blur-md px-6 py-2.5 rounded-full border border-rose-200/40 shadow-[0_4px_20px_rgba(244,63,94,0.04)]">
+                    
+                    <!-- Soft Pink Heart (Left) with Refined Pulse Glow -->
+                    <div class="heart-badge flex items-center justify-center">
+                        <svg class="w-4 h-4 fill-pink-400/80 drop-shadow-[0_2px_4px_rgba(244,63,94,0.15)]" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    </div>
+
+                    <!-- Clean & High-End Typography -->
+                    <h2 class="text-xs sm:text-sm font-light font-['Plus_Jakarta_Sans'] tracking-[0.2em] uppercase text-gray-500 flex items-center gap-1.5">
+                        Private Cinema 
+                        <span class="font-semibold text-gray-800 tracking-[0.15em]">Moya Barida Salim</span>
+                    </h2>
+
+                    <!-- Soft Pink Heart (Right) -->
+                    <div class="heart-badge flex items-center justify-center">
+                        <svg class="w-4 h-4 fill-pink-400/80 drop-shadow-[0_2px_4px_rgba(244,63,94,0.15)]" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Projector Theater Frame Glass -->
+            <div class="w-full glass-panel p-4 sm:p-6 rounded-[2.5rem] luxury-glow">
+                
+                <!-- Screen Aspect Ratio Container 16:9 -->
+                <div class="relative aspect-video w-full rounded-2xl overflow-hidden bg-black screen-glow border border-rose-200/30 group">
+                    <!-- LINK SOURCE STREAM VIDEO MP4 -->
+                    <video id="cinemaVideo" class="w-full h-full object-cover" crossorigin="anonymous" playsinline>
+                        <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+                        Browser tidak mendukung media streaming.
+                    </video>
+
+                    <!-- Control Overlay Screen -->
+                    <div id="videoOverlay" class="absolute inset-0 bg-rose-950/20 backdrop-blur-[2px] flex flex-col items-center justify-center transition-all duration-500 opacity-100">
+                        <button onclick="initiateMediaPlayback()" class="bg-gradient-to-tr from-rose-400 to-pink-500 text-white w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-xl shadow-rose-500/30 transform hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center pl-0.5 border border-white/20">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6 fill-current" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </button>
+                        <p class="text-white text-[9px] sm:text-[10px] font-medium tracking-[0.25em] mt-4 uppercase drop-shadow-md font-['Plus_Jakarta_Sans']">
+                            Mulai Sesi Pemutaran
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Console Bar Menu Media Controller -->
+                <div class="flex items-center justify-between mt-6 px-1">
+                    <button id="playbackBtn" onclick="toggleMediaState()" class="px-6 py-3 bg-gray-900 hover:bg-rose-500 text-white text-[9px] font-bold tracking-widest uppercase rounded-xl transition-all duration-300 cursor-pointer shadow-xs font-['Plus_Jakarta_Sans']">
+                        Pause
+                    </button>
+                    <button onclick="requestFullscreenAbstraction()" class="px-6 py-3 bg-white/80 hover:bg-rose-50 text-rose-500 text-[9px] font-bold tracking-widest uppercase rounded-xl border border-rose-200/50 transition-all duration-300 cursor-pointer font-['Plus_Jakarta_Sans']">
+                        Layar Penuh
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- PRESTIGE FOOTER BOTTOM -->
+    <footer class="w-full pb-4 text-center text-rose-400/70 text-[8px] sm:text-[9px] font-bold tracking-[0.3em] uppercase z-10">
+        Exclusively Handcrafted For <span class="text-rose-500 font-bold">Moya Barida Salim</span>
+    </footer>
+
+
+    <!-- ========================================== -->
+    <!-- PROFESSIONAL FRONTEND ENGINE LOGIC         -->
+    <!-- ========================================== -->
+    <script>
+        const ticketSection = document.getElementById('ticketSection');
+        const mainCinema = document.getElementById('mainCinema');
+        const video = document.getElementById('cinemaVideo');
+        const overlay = document.getElementById('videoOverlay');
+        const playbackBtn = document.getElementById('playbackBtn');
+        const overlayExplosion = document.getElementById('love-explosion-overlay');
+        const burstContainer = document.getElementById('burst-container');
+
+        // PIPELINE TRANSISI LEDAKAN LOVE JATUH FULL LAYER
+        function triggerLoveExplosionPipeline() {
+            // Aktifkan flash penutup layar
+            overlayExplosion.classList.add('active');
+            
+            // Generate Elemen Ledakan Partikel Hati HTML secara dinamis
+            for(let i = 0; i < 40; i++) {
+                createExplodingHeart();
+            }
+
+            // Di tengah ledakan, tukar layar tiket dengan layar bioskop utama
+            setTimeout(() => {
+                ticketSection.style.display = 'none';
+                mainCinema.classList.remove('hidden');
+
+                // Munculkan stage bioskop utama
+                setTimeout(() => {
+                    mainCinema.classList.remove('opacity-0', 'translate-y-8');
+                    mainCinema.classList.add('opacity-100', 'translate-y-0');
+                }, 50);
+            }, 800);
+
+            // Bersihkan sisa ledakan dan kembalikan kecerahan layar
+            setTimeout(() => {
+                overlayExplosion.classList.remove('active');
+                burstContainer.innerHTML = ''; // Hapus elemen sampah DOM
+            }, 1800);
+        }
+
+        // Generator Fungsi Efek Ledakan Love
+        function createExplodingHeart() {
+            const el = document.createElement('div');
+            el.className = 'absolute transition-all duration-1000 ease-out pointer-events-none opacity-100';
+            
+            el.innerHTML = `
+                <svg class="w-8 h-8 fill-pink-400" viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+            `;
+            
+            const startX = window.innerWidth / 2;
+            const startY = window.innerHeight / 2;
+            el.style.left = startX + 'px';
+            el.style.top = startY + 'px';
+            
+            burstContainer.appendChild(el);
+
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = 150 + Math.random() * 250; 
+            const targetX = startX + Math.cos(angle) * velocity - 16;
+            const targetY = startY + Math.sin(angle) * velocity - 16;
+            const scale = 0.5 + Math.random() * 1.5;
+
+            setTimeout(() => {
+                el.style.transform = `translate(${targetX - startX}px, ${targetY - startY}px) scale(${scale}) rotate(${Math.random() * 90}deg)`;
+                el.style.opacity = '0';
+            }, 20);
+        }
+
+        // VIDEO PLAYER MEDIA SYSTEM
+        function initiateMediaPlayback() {
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            video.play();
+            playbackBtn.innerText = "Pause";
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const video = document.getElementById("cinemaVideo");
+            if(video) {
+                video.addEventListener("play", () => {
+                    const overlay = document.getElementById("videoOverlay");
+                    if(overlay) overlay.classList.add("opacity-0", "pointer-events-none");
+                });
+            }
+        });
+
+        function toggleMediaState() {
+            if (video.paused) {
+                video.play();
+                playbackBtn.innerText = "Pause";
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+            } else {
+                video.pause();
+                playbackBtn.innerText = "Play";
+            }
+        }
+
+        // Abstraksi Layar Penuh Lintas Browser
+        function requestFullscreenAbstraction() {
+            if (video.requestFullscreen) { video.requestFullscreen(); }
+            else if (video.webkitRequestFullscreen) { video.webkitRequestFullscreen(); }
+            else if (video.msRequestFullscreen) { video.msRequestFullscreen(); }
+        }
+
+        // THREE.JS ENGINE: AMBIENT 3D FLOATING HEARTS SYSTEM
+        const canvas = document.getElementById('ambient-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = 30;
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const heartShape = new THREE.Shape();
+        heartShape.moveTo(0, 0);
+        heartShape.bezierCurveTo(0, 0.5, 0.5, 1, 1, 1);
+        heartShape.bezierCurveTo(1.8, 1, 1.8, 0.3, 1.8, 0);
+        heartShape.bezierCurveTo(1.8, -0.7, 1, -1.3, 0, -2);
+        heartShape.bezierCurveTo(-1, -1.3, -1.8, -0.7, -1.8, 0);
+        heartShape.bezierCurveTo(-1.8, 0.3, -1.8, 1, -1, 1);
+        heartShape.bezierCurveTo(-0.5, 1, 0, 0.5, 0, 0);
+
+        const extrudeSettings = { depth: 0.08, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.04, bevelThickness: 0.04 };
+        const geometry = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+        geometry.center();
+
+        const heartGroup = new THREE.Group();
+        const heartCount = window.innerWidth < 768 ? 25 : 55;
+        const heartsData = [];
+        const colorPalette = [0xffb6c1, 0xffcad4, 0xf43f5e, 0xffa6c9];
+
+        for (let i = 0; i < heartCount; i++) {
+            const randomColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            const material = new THREE.MeshBasicMaterial({ 
+                color: randomColor, 
+                transparent: true, 
+                opacity: THREE.MathUtils.randFloat(0.12, 0.38) 
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(THREE.MathUtils.randFloatSpread(55), THREE.MathUtils.randFloatSpread(60), THREE.MathUtils.randFloatSpread(15));
+            const scale = THREE.MathUtils.randFloat(0.25, 0.65);
+            mesh.scale.set(scale, scale, scale);
+            
+            heartGroup.add(mesh);
+            heartsData.push({ speedY: THREE.MathUtils.randFloat(0.015, 0.045), rotSpeed: THREE.MathUtils.randFloat(0.003, 0.012) });
+        }
+        scene.add(heartGroup);
+
+        function loopRenderEngine() {
+            requestAnimationFrame(loopRenderEngine);
+            heartGroup.children.forEach((heart, index) => {
+                const data = heartsData[index];
+                heart.position.y -= data.speedY;
+                heart.rotation.z += data.rotSpeed * 0.15;
+                heart.rotation.x += data.rotSpeed * 0.08;
+                if (heart.position.y < -32) {
+                    heart.position.y = 32;
+                    heart.position.x = THREE.MathUtils.randFloatSpread(55);
+                }
+            });
+            renderer.render(scene, camera);
+        }
+        loopRenderEngine();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
